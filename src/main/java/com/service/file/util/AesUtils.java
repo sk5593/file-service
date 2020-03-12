@@ -9,6 +9,9 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
 import java.security.SecureRandom;
 
+/**
+ * 对称加密AES工具类
+ */
 public class AesUtils {
     public static String getSecretKey() throws Exception {
         return getSecretKey(null);

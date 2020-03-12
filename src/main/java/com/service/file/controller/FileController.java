@@ -26,9 +26,13 @@ import java.io.PrintWriter;
 import java.security.Key;
 import java.util.Date;
 import java.util.UUID;
+
 @Slf4j
 @WebServlet( "/api/upload" )
 @MultipartConfig
+/**
+ * 文件上传接口
+ */
 public class FileController extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -37,38 +41,39 @@ public class FileController extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        log.info("调用post方法");
-
-        // 获取PrintWriter对象
-        PrintWriter out = resp.getWriter();
-        Part part = req.getPart("file");
-        String disposition = part.getHeader("Content-Disposition");
-        String[] split = disposition.split(";");
-        String fileName = split[split.length-1];
-        String substring = fileName.substring(fileName.indexOf("=")+2, fileName.length() - 1);
-        //设置原始名字
-        String suffix = disposition.substring(disposition.lastIndexOf("."), disposition.length() - 1);
-        //去掉. 设置类型
-        String type = suffix.replace(".", "");
-
-        //随机的生存一个32的字符串
-        UUID uuid = UUID.randomUUID();
-        String filename = uuid + suffix;
-        InputStream is = part.getInputStream();
-        //获取项目的绝对路径
-        String location = System.getProperty("user.dir");
-        //时间格式化，例如20200311
-        String formatTime = Utils.timeFormat(new Date());
-        //创建文件夹
-        String dirLocation = Utils.mkDir(location, formatTime);
-        FileOutputStream fos = new FileOutputStream(dirLocation + "\\" + filename);
+        PrintWriter out = null;
+        FileOutputStream fos = null;
+        InputStream is = null;
         try {
+            // 获取PrintWriter对象
+            out = resp.getWriter();
+            Part part = req.getPart("file");
+            String disposition = part.getHeader("Content-Disposition");
+            String[] split = disposition.split(";");
+            String fileName = split[split.length - 1];
+            String substring = fileName.substring(fileName.indexOf("=") + 2, fileName.length() - 1);
+            //设置原始名字
+            String suffix = disposition.substring(disposition.lastIndexOf("."), disposition.length() - 1);
+            //去掉. 设置类型
+            String type = suffix.replace(".", "");
+            //随机的生存一个32的字符串
+            UUID uuid = UUID.randomUUID();
+            String filename = uuid + suffix;
+            is = part.getInputStream();
+            //获取项目的绝对路径
+            String location = System.getProperty("user.dir");
+            //时间格式化，例如20200311
+            String formatTime = Utils.timeFormat(new Date());
+            //创建文件夹
+            String dirLocation = Utils.mkDir(location, formatTime);
+            fos = new FileOutputStream(dirLocation + "\\" + filename);
+
             //获取对称密钥
             String key = AesUtils.getSecretKey();
-            //RSA加密对称密钥
+            //RSA公钥加密对称密钥
             String encrypt = RsaUtils.encrypt(key, MainConfig.PUBLIC_KEY);
             Key k = AesUtils.toKey(key.getBytes());
-            byte[] raw  = k.getEncoded();
+            byte[] raw = k.getEncoded();
             SecretKeySpec secretKeySpec = new SecretKeySpec(raw, MainConfig.ALGORITHM);
             Cipher cipher = Cipher.getInstance(MainConfig.ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
@@ -90,22 +95,27 @@ public class FileController extends HttpServlet {
             try {
                 int insert = JdbcUtils.insert(fileEntity);
                 if (insert > 0) {
-                    log.info("上传成功");
+                    log.info("插入成功");
                     out.print(uuid);
+                }else {
+                    log.error("插入失败,返回值为0");
                 }
-            }catch (Exception e){
-                log.error("插入失败",e);
+            } catch (Exception e) {
+                log.error("插入失败", e);
                 out.print("500");
             }
 
         } catch (Exception e) {
-            log.error("上传文件失败" , e);
+            log.error("上传文件失败", e);
             out.print(500);
-        }finally {
+        } finally {
+            if (fos != null)
             fos.close();
+            if (is != null)
             is.close();
-            out.flush();
-            out.close();
+            if (fos != null){
+                out.close();
+            }
         }
     }
 }

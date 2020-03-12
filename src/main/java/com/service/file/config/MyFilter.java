@@ -17,18 +17,19 @@ public class MyFilter implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        log.info("过滤器初始化");
     }
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
+        //解决response返回中文乱码，一定要在out前面声明
         response.setCharacterEncoding("UTF-8");
         response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         String uuid = request.getHeader("X-SID");
         String signature = request.getHeader("X-Signature");
+        //公钥解密鉴权
         if (StringUtils.isEmpty(uuid) || StringUtils.isEmpty(signature)){
             out.print("403");
         }else {
